@@ -105,6 +105,19 @@
     background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 14px;
   }
 
+  .gen-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .gen-row .btn { flex: 1 1 220px; }
+  .btn-dark {
+    padding: 15px; font-size: 17px; color: #fff; background: #1a1a1a;
+    box-shadow: 0 8px 20px -10px rgba(0,0,0,.5);
+  }
+  .btn-dark:hover { background: #000; }
+  .btn-dark:disabled { opacity: .7; cursor: wait; }
+  a.btn { text-decoration: none; }
+  #imgResult { display: none; margin-top: 22px; }
+  .img-block { padding: 10px; text-align: center; }
+  #banner { max-width: 100%; max-height: 640px; border-radius: 10px; display: block; margin: 0 auto; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; text-align: center; }
   #result { display: none; margin-top: 22px; }
   .result-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
   .result-head h2 { font-size: 18px; margin: 0; }
@@ -150,10 +163,34 @@
         <input type="radio" name="tone" id="t-soft" value="soft" /><label for="t-soft">🌸 ละมุน</label>
       </div>
     </div>
-    <button class="btn btn-primary" id="gen" type="submit">
-      <span class="spinner"></span><span id="genText">✨ สร้างแคปชั่น</span>
-    </button>
+    <div class="field">
+      <label>ขนาดภาพแบนเนอร์</label>
+      <div class="tones">
+        <input type="radio" name="aspect" id="a-916" value="9:16" checked /><label for="a-916">📱 9:16 TikTok</label>
+        <input type="radio" name="aspect" id="a-11" value="1:1" /><label for="a-11">⬛ 1:1 จัตุรัส</label>
+        <input type="radio" name="aspect" id="a-169" value="16:9" /><label for="a-169">🖥️ 16:9 แนวนอน</label>
+      </div>
+    </div>
+    <div class="gen-row">
+      <button class="btn btn-primary" id="gen" type="submit">
+        <span class="spinner"></span><span id="genText">✨ สร้างแคปชั่น</span>
+      </button>
+      <button class="btn btn-dark" id="genImg" type="button">
+        <span class="spinner"></span><span id="genImgText">🖼️ สร้างภาพแบนเนอร์</span>
+      </button>
+    </div>
     <div class="error" id="error" role="alert"></div>
+
+    <section id="imgResult" aria-live="polite">
+      <div class="result-head"><h2>🖼️ ภาพแบนเนอร์</h2></div>
+      <div class="block img-block">
+        <img id="banner" alt="ภาพแบนเนอร์สินค้า" />
+      </div>
+      <div class="actions">
+        <a class="btn btn-primary" id="download" download="banner.png">⬇️ ดาวน์โหลดภาพ</a>
+        <button type="button" class="btn btn-ghost" id="regenImg">🔄 สร้างภาพใหม่</button>
+      </div>
+    </section>
 
     <section id="result" aria-live="polite">
       <div class="result-head"><h2>🎉 แคปชั่นของคุณ</h2></div>
@@ -254,6 +291,45 @@
       setTimeout(() => { btn.textContent = label; btn.classList.remove("done"); }, 1600);
     });
   });
+
+  // ---------- สร้างภาพแบนเนอร์ ----------
+  const genImg = $("genImg"), genImgText = $("genImgText"), imgResult = $("imgResult");
+  function setImgLoading(on) {
+    genImg.disabled = on;
+    genImg.classList.toggle("loading", on);
+    genImgText.textContent = on ? "กำลังสร้างภาพ (~15 วิ)..." : "🖼️ สร้างภาพแบนเนอร์";
+  }
+  async function generateImage() {
+    const name = $("name").value.trim();
+    if (!name) { showError("กรุณากรอกชื่อสินค้า"); $("name").focus(); return; }
+    showError("");
+    setImgLoading(true);
+    try {
+      const r = await fetch("/api/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          details: $("details").value,
+          price: $("price").value,
+          aspect: form.querySelector('input[name="aspect"]:checked').value,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "สร้างภาพไม่สำเร็จ ลองใหม่อีกครั้ง");
+      $("banner").src = data.image;
+      $("download").href = data.image;
+      $("download").download = `banner-${name.replace(/[\\/:*?"<>|\s]+/g, "-").slice(0, 40)}.png`;
+      imgResult.style.display = "block";
+      imgResult.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      showError(e.message === "Failed to fetch" ? "เชื่อมต่อ server ไม่ได้" : e.message);
+    } finally {
+      setImgLoading(false);
+    }
+  }
+  genImg.addEventListener("click", generateImage);
+  $("regenImg").addEventListener("click", generateImage);
 
   form.addEventListener("submit", (e) => { e.preventDefault(); generate(); });
   $("regen").addEventListener("click", generate);

@@ -9,6 +9,24 @@ const API_KEY = process.env.OPENROUTER_API_KEY || "";
 const MODEL = process.env.OPENROUTER_MODEL || "z-ai/glm-5.3-flash";
 const INDEX = path.join(__dirname, "public", "index.html");
 const MAX_TAGS = 5; // จำนวนแฮชแท็กสูงสุดที่ส่งกลับไปหน้าเว็บ
+const IMAGE_MODEL = process.env.OPENROUTER_IMAGE_MODEL || "qwen/qwen-image-2.1-turbo";
+const RATIOS = ["9:16", "1:1", "16:9"];
+
+// สร้าง prompt ภาพแบนเนอร์ — คุมให้มีเฉพาะข้อความที่กำหนด ห้ามโลโก้/คำโฆษณาเกินจริง
+function bannerPrompt({ name, details, price }) {
+  const texts = [`a bold headline that reads exactly "${name}"`];
+  if (price) texts.push(`a red price badge that reads exactly "${price}"`);
+  return [
+    `Professional e-commerce advertising banner for the product: ${name}.`,
+    details && `Product details (Thai): ${details}.`,
+    `Show the product as the hero, large and centered, photorealistic, premium studio lighting.`,
+    `Modern, clean layout with a white and red color scheme, soft gradient background, subtle props that match the product.`,
+    `The image contains ${texts.join(" and ")}. These are the ONLY text in the image; render the Thai text crisply and correctly.`,
+    `No other words, no feature icons, no claims, no logos, no brand marks, no watermarks, no platform logos.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
 
 const SYSTEM_PROMPT = `คุณคือนักเขียนแคปชั่น TikTok สายขายของมืออาชีพ เขียนภาษาไทยเป็นกันเอง สนุก กระชับ อ่านง่ายบนมือถือ
 กติกา:
@@ -148,9 +166,63 @@ async function handleGenerate(req, res) {
   }
 }
 
+async function handleImage(req, res) {
+  if (!API_KEY) {
+    return send(res, 500, { error: "ยังไม่ได้ตั้งค่า OPENROUTER_API_KEY ในไฟล์ .env" });
+  }
+  let input;
+  try {
+    input = JSON.parse(await readBody(req));
+  } catch {
+    return send(res, 400, { error: "ข้อมูลที่ส่งมาไม่ถูกต้อง" });
+  }
+  const name = String(input.name || "").trim().slice(0, 80);
+  const details = String(input.details || "").trim().slice(0, 600);
+  const price = String(input.price || "").trim().slice(0, 40);
+  const aspect = RATIOS.includes(input.aspect) ? input.aspect : "9:16";
+  if (!name) return send(res, 400, { error: "กรุณากรอกชื่อสินค้า" });
+
+  try {
+    const r = await fetch("https://openrouter.ai/api/v1/images", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+        "X-Title": "TikTok Caption Generator",
+      },
+      body: JSON.stringify({
+        model: IMAGE_MODEL,
+        prompt: bannerPrompt({ name, details, price }),
+        n: 1,
+        aspect_ratio: aspect,
+        resolution: "1K",
+      }),
+      signal: AbortSignal.timeout(120_000),
+    });
+
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const msg = ERRORS[r.status] || data?.error?.message || `เกิดข้อผิดพลาด (${r.status})`;
+      console.error("OpenRouter image error", r.status, data?.error?.message);
+      return send(res, r.status >= 500 ? 502 : r.status, { error: msg });
+    }
+    const img = data.data?.[0];
+    if (!img?.b64_json) {
+      return send(res, 502, { error: "โมเดลไม่ได้ส่งภาพกลับมา ลองใหม่อีกครั้ง" });
+    }
+    const type = img.media_type || "image/png";
+    return send(res, 200, { image: `data:${type};base64,${img.b64_json}`, cost: data.usage?.cost });
+  } catch (e) {
+    const timeout = e.name === "TimeoutError";
+    console.error("Image request failed", e.message);
+    return send(res, 504, { error: timeout ? "สร้างภาพนานเกินไป ลองใหม่อีกครั้ง" : "เชื่อมต่อ OpenRouter ไม่ได้" });
+  }
+}
+
 http
   .createServer((req, res) => {
     if (req.method === "POST" && req.url === "/api/generate") return handleGenerate(req, res);
+    if (req.method === "POST" && req.url === "/api/image") return handleImage(req, res);
     if (req.method === "GET" && (req.url === "/" || req.url === "/index.html")) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       return fs.createReadStream(INDEX).pipe(res);
