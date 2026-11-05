@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TikTok Caption Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --red: #e11d2e;
+    --red-dark: #b5121f;
+    --red-soft: #fff1f2;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #f0e3e4;
+    --bg: #ffffff;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Prompt", system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(1200px 500px at 100% -10%, #ffe4e6 0%, transparent 60%),
+      radial-gradient(900px 400px at -10% 110%, #fff1f2 0%, transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+
+  header { text-align: center; margin-bottom: 28px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--red-soft); color: var(--red);
+    font-size: 13px; font-weight: 600;
+    padding: 6px 14px; border-radius: 999px; border: 1px solid #fecdd3;
+  }
+  h1 { font-size: clamp(28px, 6vw, 40px); margin: 14px 0 6px; line-height: 1.2; }
+  h1 span { color: var(--red); }
+  .sub { color: var(--muted); margin: 0; }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: 0 10px 30px -12px rgba(225, 29, 46, 0.18);
+  }
+  label { display: block; font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  label small { font-weight: 400; color: var(--muted); }
+  input, textarea {
+    width: 100%; font: inherit; color: inherit;
+    border: 1.5px solid #ececec; border-radius: 12px;
+    padding: 12px 14px; background: #fafafa;
+    transition: border-color .15s, background .15s, box-shadow .15s;
+  }
+  input:focus, textarea:focus {
+    outline: none; border-color: var(--red); background: #fff;
+    box-shadow: 0 0 0 4px rgba(225, 29, 46, 0.1);
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  .field { margin-bottom: 18px; }
+
+  .tones { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tones input { display: none; }
+  .tones label {
+    margin: 0; font-weight: 500; font-size: 14px; cursor: pointer;
+    padding: 8px 14px; border-radius: 999px;
+    border: 1.5px solid #ececec; background: #fafafa;
+    transition: all .15s;
+  }
+  .tones input:checked + label { background: var(--red); color: #fff; border-color: var(--red); }
+
+  .btn {
+    font: inherit; font-weight: 600; cursor: pointer; border: 0;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 14px; transition: transform .1s, background .15s, opacity .15s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn-primary {
+    width: 100%; padding: 15px; font-size: 17px; color: #fff;
+    background: linear-gradient(135deg, #ff3b4e, var(--red) 60%, var(--red-dark));
+    box-shadow: 0 8px 20px -8px rgba(225, 29, 46, .6);
+  }
+  .btn-primary:disabled { opacity: .7; cursor: wait; }
+  .btn-ghost {
+    padding: 9px 14px; font-size: 14px;
+    background: var(--red-soft); color: var(--red); border: 1px solid #fecdd3;
+  }
+  .btn-ghost:hover { background: #ffe4e6; }
+  .btn-ghost.done { background: #16a34a; color: #fff; border-color: #16a34a; }
+
+  .spinner {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2.5px solid rgba(255,255,255,.4); border-top-color: #fff;
+    animation: spin .8s linear infinite; display: none;
+  }
+  .loading .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error {
+    display: none; margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+    background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; font-size: 14px;
+  }
+
+  #result { display: none; margin-top: 22px; }
+  .result-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .result-head h2 { font-size: 18px; margin: 0; }
+  .block { background: #fafafa; border: 1px solid #f1f1f1; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .block-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 10px; }
+  .block-head span { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  #caption { white-space: pre-wrap; line-height: 1.75; margin: 0; font-size: 16px; }
+  #tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag { background: #fff; color: var(--red); border: 1px solid #fecdd3; padding: 5px 11px; border-radius: 999px; font-size: 14px; font-weight: 500; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .actions .btn-primary { flex: 1; min-width: 200px; padding: 13px; font-size: 16px; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 28px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="badge">⚡ AI Caption Generator</div>
+    <h1>สร้างแคปชั่น <span>TikTok</span> ขายของ</h1>
+    <p class="sub">กรอกชื่อสินค้า กดปุ่มเดียว ได้แคปชั่นพร้อมแฮชแท็กไปโพสต์ได้เลย</p>
+  </header>
+
+  <form class="card" id="form" autocomplete="off">
+    <div class="field">
+      <label for="name">ชื่อสินค้า *</label>
+      <input id="name" maxlength="150" placeholder="เช่น เซรั่มวิตามินซี หน้าใส" required />
+    </div>
+    <div class="field">
+      <label for="details">รายละเอียดสินค้า <small>(จุดเด่น วิธีใช้ กลุ่มลูกค้า)</small></label>
+      <textarea id="details" maxlength="1500" placeholder="เช่น เนื้อบางเบา ซึมไว ไม่เหนียว เหมาะกับผิวมัน ขนาด 30 ml"></textarea>
+    </div>
+    <div class="field">
+      <label for="price">ราคา / โปรโมชั่น <small>(ไม่บังคับ)</small></label>
+      <input id="price" maxlength="60" placeholder="เช่น 299.- ซื้อ 1 แถม 1 วันนี้เท่านั้น" />
+    </div>
+    <div class="field">
+      <label>โทนแคปชั่น</label>
+      <div class="tones">
+        <input type="radio" name="tone" id="t-fun" value="fun" checked /><label for="t-fun">😆 สนุก</label>
+        <input type="radio" name="tone" id="t-pro" value="pro" /><label for="t-pro">💼 มืออาชีพ</label>
+        <input type="radio" name="tone" id="t-urgent" value="urgent" /><label for="t-urgent">🔥 เร่งปิดการขาย</label>
+        <input type="radio" name="tone" id="t-soft" value="soft" /><label for="t-soft">🌸 ละมุน</label>
+      </div>
+    </div>
+    <button class="btn btn-primary" id="gen" type="submit">
+      <span class="spinner"></span><span id="genText">✨ สร้างแคปชั่น</span>
+    </button>
+    <div class="error" id="error" role="alert"></div>
+
+    <section id="result" aria-live="polite">
+      <div class="result-head"><h2>🎉 แคปชั่นของคุณ</h2></div>
+      <div class="block">
+        <div class="block-head"><span>แคปชั่น</span><button type="button" class="btn btn-ghost" data-copy="caption">📋 คัดลอก</button></div>
+        <p id="caption"></p>
+      </div>
+      <div class="block">
+        <div class="block-head"><span>แฮชแท็ก</span><button type="button" class="btn btn-ghost" data-copy="tags">📋 คัดลอก</button></div>
+        <div id="tags"></div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" data-copy="all">📋 คัดลอกทั้งหมด (แคปชั่น + แฮชแท็ก)</button>
+        <button type="button" class="btn btn-ghost" id="regen">🔄 สร้างใหม่</button>
+      </div>
+    </section>
+  </form>
+
+  <footer>Powered by OpenRouter · GLM 5.3 Flash</footer>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const form = $("form"), gen = $("gen"), genText = $("genText"), err = $("error"), result = $("result");
+  let current = { caption: "", hashtags: [] };
+
+  function setLoading(on) {
+    gen.disabled = on;
+    gen.classList.toggle("loading", on);
+    genText.textContent = on ? "กำลังสร้างแคปชั่น..." : "✨ สร้างแคปชั่น";
+  }
+  function showError(msg) {
+    err.textContent = msg;
+    err.style.display = msg ? "block" : "none";
+  }
+
+  async function generate() {
+    const name = $("name").value.trim();
+    if (!name) { showError("กรุณากรอกชื่อสินค้า"); $("name").focus(); return; }
+    showError("");
+    setLoading(true);
+    try {
+      const r = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          details: $("details").value,
+          price: $("price").value,
+          tone: form.querySelector('input[name="tone"]:checked').value,
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "เกิดข้อผิดพลาด ลองใหม่อีกครั้ง");
+      current = { caption: data.caption || "", hashtags: data.hashtags || [] };
+      render();
+    } catch (e) {
+      showError(e.message === "Failed to fetch" ? "เชื่อมต่อ server ไม่ได้" : e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function render() {
+    $("caption").textContent = current.caption;
+    const tags = $("tags");
+    tags.replaceChildren(...current.hashtags.map((t) => {
+      const s = document.createElement("span");
+      s.className = "tag"; s.textContent = t; return s;
+    }));
+    result.style.display = "block";
+    result.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function textFor(kind) {
+    const tags = current.hashtags.join(" ");
+    if (kind === "caption") return current.caption;
+    if (kind === "tags") return tags;
+    return current.caption + (tags ? "\n\n" + tags : "");
+  }
+
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      const ok = document.execCommand("copy"); ta.remove(); return ok;
+    }
+  }
+
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    const label = btn.textContent;
+    btn.addEventListener("click", async () => {
+      const ok = await copy(textFor(btn.dataset.copy));
+      btn.textContent = ok ? "✅ คัดลอกแล้ว" : "คัดลอกไม่สำเร็จ";
+      btn.classList.add("done");
+      setTimeout(() => { btn.textContent = label; btn.classList.remove("done"); }, 1600);
+    });
+  });
+
+  form.addEventListener("submit", (e) => { e.preventDefault(); generate(); });
+  $("regen").addEventListener("click", generate);
+</script>
+</body>
+</html>
