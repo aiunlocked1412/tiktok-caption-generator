@@ -86,5 +86,5 @@ npm start
 ---
 
 <div align="center">
-Made with ❤️ for Thai sellers · Powered by OpenRouter · GLM 5.3 Flash
+Made with ❤️ by <b>AIUNLOCK.co</b>
 </div>
